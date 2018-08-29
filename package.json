@@ -1,0 +1,39 @@
+{
+  "name": "amper-promise-utils",
+  "version": "1.0.0",
+  "description": "Ampersand's util functions for working with promises",
+  "main": "dist/index.js",
+  "types": "dist/types.d.ts",
+  "scripts": {
+    "build": "./node_modules/.bin/tsc",
+    "test": "mocha -r ts-node/register test/**/*-test.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ampersand-tech/amper-promise-utils.git"
+  },
+  "keywords": [
+    "promise",
+    "async",
+    "await",
+    "utils"
+  ],
+  "author": "Ampersand Technologies, Inc.",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ampersand-tech/amper-promise-utils/issues"
+  },
+  "homepage": "https://github.com/ampersand-tech/amper-promise-utils#readme",
+  "dependencies": {
+    "amper-utils": "git+ssh://git@github.com:ampersand-tech/amper-utils.git"
+  },
+  "devDependencies": {
+    "@types/chai": "^4.1.4",
+    "@types/mocha": "^5.2.5",
+    "@types/node": "^10.5.2",
+    "chai": "^4.1.2",
+    "mocha": "^5.2.0",
+    "ts-node": "^7.0.0",
+    "typescript": "^2.9.2"
+  }
+}
