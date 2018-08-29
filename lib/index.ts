@@ -2,8 +2,8 @@
 * Copyright 2017-present Ampersand Technologies, Inc.
 */
 
-import * as ErrorUtils from 'amper-utils/lib/errorUtils';
-import { ErrDataCB, Stash } from 'amper-utils/lib/types';
+import { ErrDataCB, Stash } from 'amper-utils';
+import * as ErrorUtils from 'amper-utils/dist/errorUtils';
 
 let domain;
 

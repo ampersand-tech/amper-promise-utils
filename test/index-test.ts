@@ -4,7 +4,7 @@
 */
 import { parallelReturnErrors, unwrap, unwrapBind, wrap } from '../lib/index';
 
-import { ErrDataCB } from 'amper-utils/lib/types';
+import { ErrDataCB } from 'amper-utils';
 import * as chai from 'chai';
 import * as domain from 'domain';
 
