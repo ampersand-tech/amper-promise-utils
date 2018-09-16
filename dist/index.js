@@ -64,9 +64,6 @@ function throwErrHandler(resolve, reject, err, data) {
         resolve(data);
     }
 }
-function returnErrHandler(resolve, _reject, err, data) {
-    resolve({ err, data });
-}
 function wrap(...args) {
     const cmd = args.shift();
     return wrapInternal({}, cmd, args, throwErrHandler);
@@ -76,15 +73,6 @@ function wrapMember(obj, cmd, ...args) {
     return wrapInternal(obj, cmd, args, throwErrHandler);
 }
 exports.wrapMember = wrapMember;
-function wrapReturnError(...args) {
-    const cmd = args.shift();
-    return wrapInternal({}, cmd, args, returnErrHandler);
-}
-exports.wrapReturnError = wrapReturnError;
-function wrapMemberReturnError(obj, cmd, ...args) {
-    return wrapInternal(obj, cmd, args, returnErrHandler);
-}
-exports.wrapMemberReturnError = wrapMemberReturnError;
 /*
 * unwrap is used to interface Promise-based code back out to a caller that wants a traditional cb(err, data) callback.
 */
@@ -260,15 +248,14 @@ exports.ignoreError = ignoreError;
 /*
 * withError is used to wrap an async function such that it returns any error instead of throwing it
 *
-* const { err, value } = await withError(someAsyncFunc(arg0, arg1));
+* const { err, data } = await withError(someAsyncFunc(arg0, arg1));
 * if (err) { ... }
 */
 async function withError(p) {
-    try {
-        return { value: await p };
-    }
-    catch (err) {
-        return { err };
-    }
+    return new Promise(function (resolve) {
+        p
+            .then(data => resolve({ data }))
+            .catch(err => resolve({ err }));
+    });
 }
 exports.withError = withError;

@@ -7,17 +7,10 @@ type StashOf<T> = {
 };
 type Stash = StashOf<any>;
 
-interface ErrorObject {
-    name?: string;
-    message?: string;
-    stack?: string;
-    code?: string;
-    statusCode?: number;
-}
-type ErrorType = undefined | null | string | ErrorObject;
+type ErrorType = undefined | null | string | Error;
 type ErrDataCB<T> = (err?: ErrorType, data?: T) => void;
 
-function errorToString(err) {
+function errorToString(err: ErrorType) {
   if (typeof err === 'string') {
     return err;
   }
@@ -85,10 +78,6 @@ function throwErrHandler(resolve, reject, err, data) {
   }
 }
 
-function returnErrHandler(resolve, _reject, err, data) {
-  resolve({err, data});
-}
-
 export function wrap<TR>(cmd: (cb: ErrDataCB<TR>) => void): Promise<TR>;
 export function wrap<T0, TR>(cmd: (arg0: T0, cb: ErrDataCB<TR>) => void, arg0: T0): Promise<TR>;
 export function wrap<T0, T1, TR>(cmd: (arg0: T0, arg1: T1, cb: ErrDataCB<TR>) => void, arg0: T0, arg1: T1): Promise<TR>;
@@ -147,71 +136,6 @@ export function wrapMember<T0, T1, T2, T3, T4, T5, TR>(
 export function wrapMember(obj, cmd, ...args) {
   return wrapInternal(obj, cmd, args, throwErrHandler);
 }
-
-interface ErrDataRet {
-  err: any;
-  data: any;
-}
-
-export function wrapReturnError(cmd: (cb: ErrDataCB<any>) => void): Promise<ErrDataRet>;
-export function wrapReturnError<T0>(cmd: (arg0: T0, cb: ErrDataCB<any>) => void, arg0: T0): Promise<ErrDataRet>;
-export function wrapReturnError<T0, T1>(cmd: (arg0: T0, arg1: T1, cb: ErrDataCB<any>) => void, arg0: T0, arg1: T1): Promise<ErrDataRet>;
-export function wrapReturnError<T0, T1, T2>(
-  cmd: (arg0: T0, arg1: T1, arg2: T2, cb: ErrDataCB<any>) => void,
-  arg0: T0, arg1: T1, arg2: T2,
-): Promise<ErrDataRet>;
-export function wrapReturnError<T0, T1, T2, T3>(
-  cmd: (arg0: T0, arg1: T1, arg2: T2, arg3: T3, cb: ErrDataCB<any>) => void,
-  arg0: T0, arg1: T1, arg2: T2, arg3: T3,
-): Promise<ErrDataRet>;
-export function wrapReturnError<T0, T1, T2, T3, T4>(
-  cmd: (arg0: T0, arg1: T1, arg2: T2, arg3: T3, arg4: T4, cb: ErrDataCB<any>) => void,
-  arg0: T0, arg1: T1, arg2: T2, arg3: T3, arg4: T4,
-): Promise<ErrDataRet>;
-export function wrapReturnError<T0, T1, T2, T3, T4, T5>(
-  cmd: (arg0: T0, arg1: T1, arg2: T2, arg3: T3, arg4: T4, arg5: T5, cb: ErrDataCB<any>) => void,
-  arg0: T0, arg1: T1, arg2: T2, arg3: T3, arg4: T4, arg5: T5,
-): Promise<ErrDataRet>;
-export function wrapReturnError<T0, T1, T2, T3, T4, T5, T6>(
-  cmd: (arg0: T0, arg1: T1, arg2: T2, arg3: T3, arg4: T4, arg5: T5, arg6: T6, cb: ErrDataCB<any>) => void,
-  arg0: T0, arg1: T1, arg2: T2, arg3: T3, arg4: T4, arg5: T5, arg6: T6,
-): Promise<ErrDataRet>;
-export function wrapReturnError(...args) {
-  const cmd = args.shift();
-  return wrapInternal({}, cmd, args, returnErrHandler);
-}
-
-export function wrapMemberReturnError(obj: object, cmd: (cb: ErrDataCB<any>) => void): Promise<ErrDataRet>;
-export function wrapMemberReturnError<T0>(obj: object, cmd: (arg0: T0, cb: ErrDataCB<any>) => void, arg0: T0): Promise<ErrDataRet>;
-export function wrapMemberReturnError<T0, T1>(
-  obj: object,
-  cmd: (arg0: T0, arg1: T1, cb: ErrDataCB<any>) => void,
-  arg0: T0, arg1: T1,
-): Promise<ErrDataRet>;
-export function wrapMemberReturnError<T0, T1, T2>(
-  obj: object,
-  cmd: (arg0: T0, arg1: T1, arg2: T2, cb: ErrDataCB<any>) => void,
-  arg0: T0, arg1: T1, arg2: T2,
-): Promise<ErrDataRet>;
-export function wrapMemberReturnError<T0, T1, T2, T3>(
-  obj: object,
-  cmd: (arg0: T0, arg1: T1, arg2: T2, arg3: T3, cb: ErrDataCB<any>) => void,
-  arg0: T0, arg1: T1, arg2: T2, arg3: T3,
-): Promise<ErrDataRet>;
-export function wrapMemberReturnError<T0, T1, T2, T3, T4>(
-  obj: object,
-  cmd: (arg0: T0, arg1: T1, arg2: T2, arg3: T3, arg4: T4, cb: ErrDataCB<any>) => void,
-  arg0: T0, arg1: T1, arg2: T2, arg3: T3, arg4: T4,
-): Promise<ErrDataRet>;
-export function wrapMemberReturnError<T0, T1, T2, T3, T4, T5>(
-  obj: object,
-  cmd: (arg0: T0, arg1: T1, arg2: T2, arg3: T3, arg4: T4, arg5: T5, cb: ErrDataCB<any>) => void,
-  arg0: T0, arg1: T1, arg2: T2, arg3: T3, arg4: T4, arg5: T5,
-): Promise<ErrDataRet>;
-export function wrapMemberReturnError(obj, cmd, ...args) {
-  return wrapInternal(obj, cmd, args, returnErrHandler);
-}
-
 
 /*
 * unwrap is used to interface Promise-based code back out to a caller that wants a traditional cb(err, data) callback.
@@ -473,14 +397,14 @@ export function ignoreError<T>(p: Promise<T>, ...args: string[]): Promise<T|unde
 /*
 * withError is used to wrap an async function such that it returns any error instead of throwing it
 *
-* const { err, value } = await withError(someAsyncFunc(arg0, arg1));
+* const { err, data } = await withError(someAsyncFunc(arg0, arg1));
 * if (err) { ... }
 */
 
-export async function withError<T>(p: Promise<T>): Promise<{ err?: ErrorType, value?: T }> {
-  try {
-    return { value: await p };
-  } catch (err) {
-    return { err };
-  }
+export async function withError<T>(p: Promise<T>): Promise<{ err?: ErrorType, data?: T }> {
+  return new Promise(function(resolve) {
+    p
+      .then(data => resolve({ data }))
+      .catch(err => resolve({ err }));
+  });
 }

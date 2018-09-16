@@ -137,15 +137,15 @@ describe('promiseUtils', function() {
   });
 
   describe('withError', function() {
-    it('should return value', async function() {
-      const { err, value } = await withError(delayResolve(1, 'yay'));
+    it('should return data', async function() {
+      const { err, data } = await withError(delayResolve(1, 'yay'));
       expect(err).to.equal(undefined);
-      expect(value).to.equal('yay');
+      expect(data).to.equal('yay');
     });
     it('should return error', async function() {
-      const { err, value } = await withError(delayReject(1, 'nay'));
+      const { err, data } = await withError(delayReject(1, 'nay'));
       expect(err).property('message').to.equal('nay');
-      expect(value).to.equal(undefined);
+      expect(data).to.equal(undefined);
     });
   });
 });
