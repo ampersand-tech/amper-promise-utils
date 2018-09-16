@@ -2,8 +2,37 @@
 * Copyright 2017-present Ampersand Technologies, Inc.
 */
 
-import { ErrDataCB, Stash } from 'amper-utils';
-import * as ErrorUtils from 'amper-utils/dist/errorUtils';
+type StashOf<T> = {
+    [k: string]: T;
+};
+type Stash = StashOf<any>;
+
+interface ErrorObject {
+    name?: string;
+    message?: string;
+    stack?: string;
+    code?: string;
+    statusCode?: number;
+}
+type ErrorType = undefined | null | string | ErrorObject;
+type ErrDataCB<T> = (err?: ErrorType, data?: T) => void;
+
+function errorToString(err) {
+  if (typeof err === 'string') {
+    return err;
+  }
+  if (!err) {
+    return '';
+  }
+  if (err.message) {
+    return err.message;
+  }
+  const errStr = '' + err;
+  if (errStr && errStr !== '[object Object]') {
+    return errStr;
+  }
+  return '<unknown>';
+}
 
 let domain;
 
@@ -230,7 +259,7 @@ export function unwrapBind(asyncFunc) {
 * waits for all promises passed in to complete or error (unlike Promise.all, which will reject immediately upon first error)
 */
 export async function parallel<T>(promises: Promise<T>[]) {
-  const res = await parallelReturnErrors(promises);
+  const res = await parallelWithErrors(promises);
   if (res.firstErr) {
     throw res.firstErr;
   }
@@ -241,7 +270,7 @@ export async function parallel<T>(promises: Promise<T>[]) {
 * waits for all promises passed in to complete or error (unlike Promise.all, which will reject immediately upon first error)
 * returns errors instead of throwing them, so caller can cleanup anything that succeeded
 */
-export async function parallelReturnErrors<T>(promises: Promise<T>[]) {
+export async function parallelWithErrors<T>(promises: Promise<T>[]) {
   const count = promises.length;
   const data: (T|undefined)[] = new Array(count);
   const errs: (Error|undefined)[] = new Array(count);
@@ -279,8 +308,8 @@ export async function parallelReturnErrors<T>(promises: Promise<T>[]) {
 }
 
 export class ParallelQueue {
-  private queue = [] as {key?: string, cmd: any, args: any[]}[];
-  private results: Stash = {};
+  private _queue = [] as {key?: string, cmd: any, args: any[]}[];
+  private _results: Stash = {};
 
   // Overloads for type checking:
   add<TR>(cmd: () => Promise<TR>);
@@ -310,7 +339,7 @@ export class ParallelQueue {
   );
 
   add(cmd, ...args) {
-    this.queue.push({cmd, args});
+    this._queue.push({cmd, args});
   }
 
   // Overloads for type checking:
@@ -346,15 +375,15 @@ export class ParallelQueue {
   );
 
   collate(key, cmd, ...args) {
-    this.queue.push({key, cmd, args});
+    this._queue.push({key, cmd, args});
   }
 
   private async runThread() {
     let entry;
-    while (entry = this.queue.shift()) {
+    while (entry = this._queue.shift()) {
       const res = await entry.cmd(...entry.args);
       if (entry.key) {
-        this.results[entry.key] = res;
+        this._results[entry.key] = res;
       }
     }
   }
@@ -365,7 +394,7 @@ export class ParallelQueue {
       ps.push(this.runThread());
     }
     await parallel(ps);
-    return this.results;
+    return this._results;
   }
 }
 
@@ -389,7 +418,7 @@ export function sleep(ms: number) {
 * ActionTimeout runs the action but early-out rejects if it takes longer than ms time
 */
 export class ActionTimeout {
-  private noTimeoutFail = false;
+  private _noTimeoutFail = false;
 
   constructor(readonly ms: number, readonly timeoutMsg = 'timed out', readonly onTimeout?: () => Promise<void>) {
   }
@@ -397,8 +426,8 @@ export class ActionTimeout {
   private async timeout() {
     await sleep(this.ms);
 
-    if (!this.noTimeoutFail) {
-      this.noTimeoutFail = true;
+    if (!this._noTimeoutFail) {
+      this._noTimeoutFail = true;
       if (this.onTimeout) {
         await this.onTimeout();
       }
@@ -409,14 +438,14 @@ export class ActionTimeout {
   run<T>(action: () => Promise<T>): Promise<T> {
     const succeed = async() => {
       const result = await action();
-      this.noTimeoutFail = true;
+      this._noTimeoutFail = true;
       return result;
     };
     return Promise.race([this.timeout() as any, succeed()]);
   }
 
   clearTimeout() {
-    this.noTimeoutFail = true;
+    this._noTimeoutFail = true;
   }
 }
 
@@ -424,12 +453,12 @@ export class ActionTimeout {
 * ignoreError is used to wrap a promise with another promise that will resolve instead of reject if
 * the original promise rejects with an error that matches any of the given error strings
 *
-* const val = await ignoreError(somePromise, 'not found', 'offline');
+* const val = await ignoreError(someAsyncFunc(arg0, arg1), 'not found', 'offline');
 */
 export function ignoreError<T>(p: Promise<T>, ...args: string[]): Promise<T|undefined> {
   return new Promise(function(resolve, reject) {
     p.then(resolve).catch(function(err) {
-      const errStr = ErrorUtils.errorToString(err, false);
+      const errStr = errorToString(err);
       for (const arg of args) {
         if (arg === errStr) {
           resolve(undefined);
@@ -439,4 +468,19 @@ export function ignoreError<T>(p: Promise<T>, ...args: string[]): Promise<T|unde
       reject(err);
     });
   });
+}
+
+/*
+* withError is used to wrap an async function such that it returns any error instead of throwing it
+*
+* const { err, value } = await withError(someAsyncFunc(arg0, arg1));
+* if (err) { ... }
+*/
+
+export async function withError<T>(p: Promise<T>): Promise<{ err?: ErrorType, value?: T }> {
+  try {
+    return { value: await p };
+  } catch (err) {
+    return { err };
+  }
 }

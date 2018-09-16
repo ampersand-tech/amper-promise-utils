@@ -2,9 +2,8 @@
 * Copyright 2017-present Ampersand Technologies, Inc.
 *
 */
-import { parallelReturnErrors, unwrap, unwrapBind, wrap } from '../lib/index';
+import { parallelWithErrors, unwrap, unwrapBind, wrap, withError } from '../lib/index';
 
-import { ErrDataCB } from 'amper-utils';
 import * as chai from 'chai';
 import * as domain from 'domain';
 
@@ -26,7 +25,7 @@ function delayReject(delay: number, err: string): Promise<any> {
   });
 }
 
-function delayThrow(delay: number, err: string, cb: ErrDataCB<any>) {
+function delayThrow(delay: number, err: string, cb) {
   setTimeout(function() {
     if (err) {
       throw new Error(err);
@@ -35,7 +34,7 @@ function delayThrow(delay: number, err: string, cb: ErrDataCB<any>) {
   }, delay);
 }
 
-function delayCallback(delay: number, err: string|null, value: any, cb: ErrDataCB<any>) {
+function delayCallback(delay: number, err: string|null, value: any, cb) {
   setTimeout(function() {
     cb(err, value);
   }, delay);
@@ -122,7 +121,7 @@ describe('promiseUtils', function() {
     });
   });
 
-  describe('parallelReturnErrors', function() {
+  describe('parallelWithErrors', function() {
     it('should return all data even if a promise is rejected', async function() {
       const ps = [
         delayResolve(10, 1),
@@ -130,10 +129,23 @@ describe('promiseUtils', function() {
         delayReject(7, 'rejected'),
       ];
 
-      const res = await parallelReturnErrors(ps);
+      const res = await parallelWithErrors(ps);
       expect(res.data).to.deep.equal([1, 2, undefined]);
       expect(res.firstErr).property('message').to.equal('rejected');
       expect(res.errs![2]).property('message').to.equal('rejected');
+    });
+  });
+
+  describe('withError', function() {
+    it('should return value', async function() {
+      const { err, value } = await withError(delayResolve(1, 'yay'));
+      expect(err).to.equal(undefined);
+      expect(value).to.equal('yay');
+    });
+    it('should return error', async function() {
+      const { err, value } = await withError(delayReject(1, 'nay'));
+      expect(err).property('message').to.equal('nay');
+      expect(value).to.equal(undefined);
     });
   });
 });

@@ -24,9 +24,7 @@
     "url": "https://github.com/ampersand-tech/amper-promise-utils/issues"
   },
   "homepage": "https://github.com/ampersand-tech/amper-promise-utils#readme",
-  "dependencies": {
-    "amper-utils": "git+ssh://git@github.com:ampersand-tech/amper-utils.git"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@types/chai": "^4.1.4",
     "@types/mocha": "^5.2.5",
