@@ -3,7 +3,22 @@
 * Copyright 2017-present Ampersand Technologies, Inc.
 */
 Object.defineProperty(exports, "__esModule", { value: true });
-const ErrorUtils = require("amper-utils/dist/errorUtils");
+function errorToString(err) {
+    if (typeof err === 'string') {
+        return err;
+    }
+    if (!err) {
+        return '';
+    }
+    if (err.message) {
+        return err.message;
+    }
+    const errStr = '' + err;
+    if (errStr && errStr !== '[object Object]') {
+        return errStr;
+    }
+    return '<unknown>';
+}
 let domain;
 try {
     domain = require('domain');
@@ -101,7 +116,7 @@ exports.unwrapBind = unwrapBind;
 * waits for all promises passed in to complete or error (unlike Promise.all, which will reject immediately upon first error)
 */
 async function parallel(promises) {
-    const res = await parallelReturnErrors(promises);
+    const res = await parallelWithErrors(promises);
     if (res.firstErr) {
         throw res.firstErr;
     }
@@ -112,7 +127,7 @@ exports.parallel = parallel;
 * waits for all promises passed in to complete or error (unlike Promise.all, which will reject immediately upon first error)
 * returns errors instead of throwing them, so caller can cleanup anything that succeeded
 */
-async function parallelReturnErrors(promises) {
+async function parallelWithErrors(promises) {
     const count = promises.length;
     const data = new Array(count);
     const errs = new Array(count);
@@ -141,24 +156,24 @@ async function parallelReturnErrors(promises) {
         errs: firstErr ? errs : undefined,
     };
 }
-exports.parallelReturnErrors = parallelReturnErrors;
+exports.parallelWithErrors = parallelWithErrors;
 class ParallelQueue {
     constructor() {
-        this.queue = [];
-        this.results = {};
+        this._queue = [];
+        this._results = {};
     }
     add(cmd, ...args) {
-        this.queue.push({ cmd, args });
+        this._queue.push({ cmd, args });
     }
     collate(key, cmd, ...args) {
-        this.queue.push({ key, cmd, args });
+        this._queue.push({ key, cmd, args });
     }
     async runThread() {
         let entry;
-        while (entry = this.queue.shift()) {
+        while (entry = this._queue.shift()) {
             const res = await entry.cmd(...entry.args);
             if (entry.key) {
-                this.results[entry.key] = res;
+                this._results[entry.key] = res;
             }
         }
     }
@@ -168,7 +183,7 @@ class ParallelQueue {
             ps.push(this.runThread());
         }
         await parallel(ps);
-        return this.results;
+        return this._results;
     }
 }
 exports.ParallelQueue = ParallelQueue;
@@ -196,12 +211,12 @@ class ActionTimeout {
         this.ms = ms;
         this.timeoutMsg = timeoutMsg;
         this.onTimeout = onTimeout;
-        this.noTimeoutFail = false;
+        this._noTimeoutFail = false;
     }
     async timeout() {
         await sleep(this.ms);
-        if (!this.noTimeoutFail) {
-            this.noTimeoutFail = true;
+        if (!this._noTimeoutFail) {
+            this._noTimeoutFail = true;
             if (this.onTimeout) {
                 await this.onTimeout();
             }
@@ -211,13 +226,13 @@ class ActionTimeout {
     run(action) {
         const succeed = async () => {
             const result = await action();
-            this.noTimeoutFail = true;
+            this._noTimeoutFail = true;
             return result;
         };
         return Promise.race([this.timeout(), succeed()]);
     }
     clearTimeout() {
-        this.noTimeoutFail = true;
+        this._noTimeoutFail = true;
     }
 }
 exports.ActionTimeout = ActionTimeout;
@@ -225,12 +240,12 @@ exports.ActionTimeout = ActionTimeout;
 * ignoreError is used to wrap a promise with another promise that will resolve instead of reject if
 * the original promise rejects with an error that matches any of the given error strings
 *
-* const val = await ignoreError(somePromise, 'not found', 'offline');
+* const val = await ignoreError(someAsyncFunc(arg0, arg1), 'not found', 'offline');
 */
 function ignoreError(p, ...args) {
     return new Promise(function (resolve, reject) {
         p.then(resolve).catch(function (err) {
-            const errStr = ErrorUtils.errorToString(err, false);
+            const errStr = errorToString(err);
             for (const arg of args) {
                 if (arg === errStr) {
                     resolve(undefined);
@@ -242,3 +257,18 @@ function ignoreError(p, ...args) {
     });
 }
 exports.ignoreError = ignoreError;
+/*
+* withError is used to wrap an async function such that it returns any error instead of throwing it
+*
+* const { err, value } = await withError(someAsyncFunc(arg0, arg1));
+* if (err) { ... }
+*/
+async function withError(p) {
+    try {
+        return { value: await p };
+    }
+    catch (err) {
+        return { err };
+    }
+}
+exports.withError = withError;
