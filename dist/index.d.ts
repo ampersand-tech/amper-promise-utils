@@ -55,4 +55,10 @@ export declare function withError<T>(p: Promise<T>): Promise<{
     err?: ErrorType;
     data?: T;
 }>;
+export declare class ResolvablePromise<T> {
+    promise: Promise<T>;
+    resolve: (value: T | PromiseLike<T>) => void;
+    reject: (reason?: any) => void;
+    constructor();
+}
 export {};
