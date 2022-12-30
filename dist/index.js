@@ -3,7 +3,7 @@
 * Copyright 2017-present Ampersand Technologies, Inc.
 */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ResolvablePromise = exports.withError = exports.ignoreError = exports.ActionTimeout = exports.sleep = exports.forever = exports.ParallelQueue = exports.parallelWithErrors = exports.parallel = void 0;
+exports.ResolvablePromise = exports.withError = exports.ignoreError = exports.ActionTimeout = exports.sleep = exports.forever = exports.SerialExecutor = exports.ParallelQueue = exports.parallelWithErrors = exports.parallel = void 0;
 function errorToString(err) {
     if (typeof err === 'string') {
         return err;
@@ -88,6 +88,41 @@ class ParallelQueue {
     }
 }
 exports.ParallelQueue = ParallelQueue;
+class SerialExecutor {
+    run(cmd, ...args) {
+        const promise = new ResolvablePromise();
+        this.queue.push({ promise, cmd, args });
+        if (this.signal) {
+            this.signal.resolve();
+        }
+        return promise.promise;
+    }
+    constructor() {
+        this.queue = [];
+        this.signal = null;
+        this.runExecutor().then(() => {
+            // noop
+        }).catch(err => {
+            console.error('SerialExecutor error', err);
+        });
+    }
+    async runExecutor() {
+        let entry;
+        while (true) {
+            entry = this.queue.shift();
+            if (entry) {
+                const res = await withError(entry.cmd(...entry.args));
+                entry.promise.settle(res.err, res.data);
+            }
+            else {
+                this.signal = new ResolvablePromise();
+                await this.signal.promise;
+                this.signal = null;
+            }
+        }
+    }
+}
+exports.SerialExecutor = SerialExecutor;
 function forever() {
     return new Promise(function () {
         // never resolves
@@ -157,6 +192,14 @@ class ResolvablePromise {
             this.resolve = resolve;
             this.reject = reject;
         });
+    }
+    settle(err, data) {
+        if (err) {
+            this.reject(err);
+        }
+        else {
+            this.resolve(data);
+        }
     }
 }
 exports.ResolvablePromise = ResolvablePromise;
