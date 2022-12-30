@@ -226,3 +226,16 @@ export async function withError<T>(p: Promise<T>): Promise<{ err?: ErrorType, da
       .catch(err => resolve({ err }));
   });
 }
+
+export class ResolvablePromise<T> {
+  promise: Promise<T>;
+  resolve: (value: T | PromiseLike<T>) => void;
+  reject: (reason?: any) => void;
+
+  constructor() {
+    this.promise = new Promise((resolve, reject) => {
+      this.resolve = resolve;
+      this.reject = reject;
+    });
+  }
+}

@@ -3,7 +3,7 @@
 * Copyright 2017-present Ampersand Technologies, Inc.
 */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.withError = exports.ignoreError = exports.ActionTimeout = exports.sleep = exports.forever = exports.ParallelQueue = exports.parallelWithErrors = exports.parallel = void 0;
+exports.ResolvablePromise = exports.withError = exports.ignoreError = exports.ActionTimeout = exports.sleep = exports.forever = exports.ParallelQueue = exports.parallelWithErrors = exports.parallel = void 0;
 function errorToString(err) {
     if (typeof err === 'string') {
         return err;
@@ -151,3 +151,12 @@ async function withError(p) {
     });
 }
 exports.withError = withError;
+class ResolvablePromise {
+    constructor() {
+        this.promise = new Promise((resolve, reject) => {
+            this.resolve = resolve;
+            this.reject = reject;
+        });
+    }
+}
+exports.ResolvablePromise = ResolvablePromise;
