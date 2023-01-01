@@ -162,10 +162,10 @@ export class ParallelQueue {
   }
 }
 
-
 export class SerialExecutor {
   private queue = [] as {promise: ResolvablePromise<any>, cmd: any, args: any[]}[];
   private signal: ResolvablePromise<void> | null = null;
+  private isRunning = true;
 
   // Overloads for type checking:
   run<TR>(cmd: () => Promise<TR>): Promise<TR>;
@@ -211,10 +211,17 @@ export class SerialExecutor {
     });
   }
 
+  async destroy() {
+    // flush the queue and set isRunning inside the command callback, so
+    // that the signal will not get created and awaited
+    await this.run(async () => {
+      this.isRunning = false;
+    });
+  }
+
   private async runExecutor() {
-    let entry;
-    while (true) {
-      entry = this.queue.shift()
+    while (this.isRunning) {
+      const entry = this.queue.shift()
       if (entry) {
         const res = await withError(entry.cmd(...entry.args));
         entry.promise.settle(res.err, res.data);
@@ -224,6 +231,10 @@ export class SerialExecutor {
         this.signal = null;
       }
     }
+  }
+
+  isBusy() {
+    return Boolean(this.isRunning && (this.queue.length || !this.signal));
   }
 }
 
@@ -305,10 +316,10 @@ export class ResolvablePromise<T> {
   }
 
   settle(err?: ErrorType, data?: T | PromiseLike<T>) {
-    if (err) {
-      this.reject(err);
-    } else {
+    if (err === undefined || err === null) {
       this.resolve(data!);
+    } else {
+      this.reject(err);
     }
   }
 }

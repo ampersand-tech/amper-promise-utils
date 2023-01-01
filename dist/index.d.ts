@@ -41,6 +41,7 @@ export declare class ParallelQueue {
 export declare class SerialExecutor {
     private queue;
     private signal;
+    private isRunning;
     run<TR>(cmd: () => Promise<TR>): Promise<TR>;
     run<TR, T0>(cmd: (arg0: T0) => Promise<TR>, arg0: T0): Promise<TR>;
     run<TR, T0, T1>(cmd: (arg0: T0, arg1: T1) => Promise<TR>, arg0: T0, arg1: T1): Promise<TR>;
@@ -52,7 +53,9 @@ export declare class SerialExecutor {
     run<TR, T0, T1, T2, T3, T4, T5, T6, T7>(cmd: (arg0: T0, arg1: T1, arg2: T2, arg3: T3, arg4: T4, arg5: T5, arg6: T6, arg7: T7) => Promise<TR>, arg0: T0, arg1: T1, arg2: T2, arg3: T3, arg4: T4, arg5: T5, arg6: T6, arg7: T7): Promise<TR>;
     run<TR, T0, T1, T2, T3, T4, T5, T6, T7, T8>(cmd: (arg0: T0, arg1: T1, arg2: T2, arg3: T3, arg4: T4, arg5: T5, arg6: T6, arg7: T7, arg8: T8) => Promise<TR>, arg0: T0, arg1: T1, arg2: T2, arg3: T3, arg4: T4, arg5: T5, arg6: T6, arg7: T7, arg8: T8): Promise<TR>;
     constructor();
+    destroy(): Promise<void>;
     private runExecutor;
+    isBusy(): boolean;
 }
 export declare function forever(): Promise<unknown>;
 export declare function sleep(ms: number): Promise<unknown>;

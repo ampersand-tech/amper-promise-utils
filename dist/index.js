@@ -100,16 +100,23 @@ class SerialExecutor {
     constructor() {
         this.queue = [];
         this.signal = null;
+        this.isRunning = true;
         this.runExecutor().then(() => {
             // noop
         }).catch(err => {
             console.error('SerialExecutor error', err);
         });
     }
+    async destroy() {
+        // flush the queue and set isRunning inside the command callback, so
+        // that the signal will not get created and awaited
+        await this.run(async () => {
+            this.isRunning = false;
+        });
+    }
     async runExecutor() {
-        let entry;
-        while (true) {
-            entry = this.queue.shift();
+        while (this.isRunning) {
+            const entry = this.queue.shift();
             if (entry) {
                 const res = await withError(entry.cmd(...entry.args));
                 entry.promise.settle(res.err, res.data);
@@ -120,6 +127,9 @@ class SerialExecutor {
                 this.signal = null;
             }
         }
+    }
+    isBusy() {
+        return Boolean(this.isRunning && (this.queue.length || !this.signal));
     }
 }
 exports.SerialExecutor = SerialExecutor;
@@ -194,11 +204,11 @@ class ResolvablePromise {
         });
     }
     settle(err, data) {
-        if (err) {
-            this.reject(err);
+        if (err === undefined || err === null) {
+            this.resolve(data);
         }
         else {
-            this.resolve(data);
+            this.reject(err);
         }
     }
 }
