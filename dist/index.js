@@ -4,22 +4,7 @@
 */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ResolvablePromise = exports.withError = exports.ignoreError = exports.ActionTimeout = exports.sleep = exports.forever = exports.SerialExecutor = exports.ParallelQueue = exports.parallelWithErrors = exports.parallel = void 0;
-function errorToString(err) {
-    if (typeof err === 'string') {
-        return err;
-    }
-    if (!err) {
-        return '';
-    }
-    if (err.message) {
-        return err.message;
-    }
-    const errStr = '' + err;
-    if (errStr && errStr !== '[object Object]') {
-        return errStr;
-    }
-    return '<unknown>';
-}
+const errorUtils_1 = require("amper-utils/dist/errorUtils");
 async function parallel(promises) {
     const res = await parallelWithErrors(promises);
     if (res.firstErr) {
@@ -176,7 +161,7 @@ exports.ActionTimeout = ActionTimeout;
 function ignoreError(p, ...args) {
     return new Promise(function (resolve, reject) {
         p.then(resolve).catch(function (err) {
-            const errStr = errorToString(err);
+            const errStr = (0, errorUtils_1.errorToString)(err, false);
             for (const arg of args) {
                 if (arg === errStr) {
                     resolve(undefined);

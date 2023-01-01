@@ -2,29 +2,8 @@
 * Copyright 2017-present Ampersand Technologies, Inc.
 */
 
-type StashOf<T> = {
-    [k: string]: T;
-};
-type Stash = StashOf<any>;
-
-type ErrorType = undefined | null | string | Error;
-
-function errorToString(err: ErrorType) {
-  if (typeof err === 'string') {
-    return err;
-  }
-  if (!err) {
-    return '';
-  }
-  if (err.message) {
-    return err.message;
-  }
-  const errStr = '' + err;
-  if (errStr && errStr !== '[object Object]') {
-    return errStr;
-  }
-  return '<unknown>';
-}
+import { errorToString } from 'amper-utils/dist/errorUtils';
+import { ErrorType, Stash } from 'amper-utils/dist/types';
 
 export async function parallel<T>(promises: Promise<T>[]) {
   const res = await parallelWithErrors(promises);
@@ -283,7 +262,7 @@ export class ActionTimeout {
 export function ignoreError<T>(p: Promise<T>, ...args: string[]): Promise<T|undefined> {
   return new Promise(function(resolve, reject) {
     p.then(resolve).catch(function(err) {
-      const errStr = errorToString(err);
+      const errStr = errorToString(err, false);
       for (const arg of args) {
         if (arg === errStr) {
           resolve(undefined);
