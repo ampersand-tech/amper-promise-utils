@@ -162,6 +162,82 @@ export class ParallelQueue {
   }
 }
 
+export class SerialExecutor {
+  private queue = [] as {promise: ResolvablePromise<any>, cmd: any, args: any[]}[];
+  private signal: ResolvablePromise<void> | null = null;
+  private isRunning = true;
+
+  // Overloads for type checking:
+  run<TR>(cmd: () => Promise<TR>): Promise<TR>;
+  run<TR, T0>(cmd: (arg0: T0) => Promise<TR>, arg0: T0): Promise<TR>;
+  run<TR, T0, T1>(cmd: (arg0: T0, arg1: T1) => Promise<TR>, arg0: T0, arg1: T1): Promise<TR>;
+  run<TR, T0, T1, T2>(cmd: (arg0: T0, arg1: T1, arg2: T2) => Promise<TR>, arg0: T0, arg1: T1, arg2: T2): Promise<TR>;
+  run<TR, T0, T1, T2, T3>(cmd: (arg0: T0, arg1: T1, arg2: T2, arg3: T3) => Promise<TR>, arg0: T0, arg1: T1, arg2: T2, arg3: T3): Promise<TR>;
+  run<TR, T0, T1, T2, T3, T4>(
+    cmd: (arg0: T0, arg1: T1, arg2: T2, arg3: T3, arg4: T4) => Promise<TR>,
+    arg0: T0, arg1: T1, arg2: T2, arg3: T3, arg4: T4,
+  ): Promise<TR>;
+  run<TR, T0, T1, T2, T3, T4, T5>(
+    cmd: (arg0: T0, arg1: T1, arg2: T2, arg3: T3, arg4: T4, arg5: T5) => Promise<TR>,
+    arg0: T0, arg1: T1, arg2: T2, arg3: T3, arg4: T4, arg5: T5,
+  ): Promise<TR>;
+  run<TR, T0, T1, T2, T3, T4, T5, T6>(
+    cmd: (arg0: T0, arg1: T1, arg2: T2, arg3: T3, arg4: T4, arg5: T5, arg6: T6) => Promise<TR>,
+    arg0: T0, arg1: T1, arg2: T2, arg3: T3, arg4: T4, arg5: T5, arg6: T6,
+  ): Promise<TR>;
+  run<TR, T0, T1, T2, T3, T4, T5, T6, T7>(
+    cmd: (arg0: T0, arg1: T1, arg2: T2, arg3: T3, arg4: T4, arg5: T5, arg6: T6, arg7: T7) => Promise<TR>,
+    arg0: T0, arg1: T1, arg2: T2, arg3: T3, arg4: T4, arg5: T5, arg6: T6, arg7: T7,
+  ): Promise<TR>;
+  run<TR, T0, T1, T2, T3, T4, T5, T6, T7, T8>(
+    cmd: (arg0: T0, arg1: T1, arg2: T2, arg3: T3, arg4: T4, arg5: T5, arg6: T6, arg7: T7, arg8: T8) => Promise<TR>,
+    arg0: T0, arg1: T1, arg2: T2, arg3: T3, arg4: T4, arg5: T5, arg6: T6, arg7: T7, arg8: T8,
+  ): Promise<TR>;
+
+  run(cmd, ...args) {
+    const promise = new ResolvablePromise<any>();
+    this.queue.push({promise, cmd, args});
+    if (this.signal) {
+      this.signal.resolve();
+    }
+    return promise.promise;
+  }
+
+  constructor() {
+    this.runExecutor().then(() => {
+      // noop
+    }).catch(err => {
+      console.error('SerialExecutor error', err);
+    });
+  }
+
+  async destroy() {
+    // flush the queue and set isRunning inside the command callback, so
+    // that the signal will not get created and awaited
+    await this.run(async () => {
+      this.isRunning = false;
+    });
+  }
+
+  private async runExecutor() {
+    while (this.isRunning) {
+      const entry = this.queue.shift()
+      if (entry) {
+        const res = await withError(entry.cmd(...entry.args));
+        entry.promise.settle(res.err, res.data);
+      } else {
+        this.signal = new ResolvablePromise();
+        await this.signal.promise;
+        this.signal = null;
+      }
+    }
+  }
+
+  isBusy() {
+    return Boolean(this.isRunning && (this.queue.length || !this.signal));
+  }
+}
+
 export function forever() {
   return new Promise(function() {
     // never resolves
@@ -237,5 +313,13 @@ export class ResolvablePromise<T> {
       this.resolve = resolve;
       this.reject = reject;
     });
+  }
+
+  settle(err?: ErrorType, data?: T | PromiseLike<T>) {
+    if (err === undefined || err === null) {
+      this.resolve(data!);
+    } else {
+      this.reject(err);
+    }
   }
 }
